@@ -3,6 +3,8 @@
 import Action
 import Orientation
 
+import random
+
 def PyAgent_Constructor ():
     print("PyAgent_Constructor")
 

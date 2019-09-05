@@ -320,7 +320,7 @@ void WumpusWorld::ExecuteAction (Action action)
 					 (currentState.agentLocation.Y > currentState.wumpusLocation.Y)))
 				{
 					currentState.wumpusAlive = false;
-					currentPercept.Scream = true;
+					currentPercept.Scream = true; // hit Wumpus with arrow (scream=true)
 				}
 			}
 		}

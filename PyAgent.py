@@ -108,5 +108,3 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
 
 def PyAgent_GameOver (score):
     print("PyAgent_GameOver: score = " + str(score))
-
-# NOTE : For now don't make PyAgent a class. Figure out how to do so though.

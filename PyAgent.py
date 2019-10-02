@@ -14,6 +14,10 @@ class PyAgent:
         self._arrow = True # Agent starts with arrow
         self._gold = False # Agent starts w/o gold
         self.orientation = Orientation.RIGHT # Agent starts right
+        
+        self.x = False
+        self.y = False
+        self.bump = False
 
     # return a random action turn 
     def random_turn (self):
@@ -28,21 +32,40 @@ class PyAgent:
         if action == Action.TURNLEFT:
             self.orientation = (self.orientation + 1) % 4
         if action == Action.TURNRIGHT:
-            self.orientation = (self.orientation + 3) % 4   
+            self.orientation = (self.orientation + 3) % 4 
+
+    def dec_location(self):
+        if  self.x == True:
+            self.loc[0] -= 1
+            self.x = False
+        if self.y == True:
+            self.loc[1] -= 1
+            self.y = False
+        self.bump = False
+                
 
     # update the current location of agent
     def update_location (self):
         x,y = self.loc
         orientation = self.orientation
 
-        if orientation == Orientation.RIGHT and x+1 < 5:
-            x += 1
-        elif orientation == Orientation.LEFT and x-1 > 0:
+        if orientation == Orientation.RIGHT:
+            if self.bump == True:
+                self.dec_location()
+            else:    
+                x += 1
+                self.x = True
+        elif orientation == Orientation.LEFT and x > 1:
             x -= 1
-        elif orientation == Orientation.UP and y+1 < 5:
-            y += 1
-        elif orientation == Orientation.DOWN and y-1 > 0:
+        elif orientation == Orientation.UP:
+            if self.bump == True:
+                self.dec_location()
+            else:    
+                y += 1
+                self.y = True
+        elif orientation == Orientation.DOWN and y > 1:
             y -= 1
+
 
         self.loc[0] = x
         self.loc[1] = y
@@ -91,8 +114,10 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
         perceptStr += "Glitter=False,"
     if (bump == 1):
         perceptStr += "Bump=True,"
+        agent.bump = True
         action = agent.random_turn()
         agent.update_orientation(action)
+        agent.dec_location()
         return action
     else:
         perceptStr += "Bump=False,"

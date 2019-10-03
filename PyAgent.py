@@ -182,34 +182,35 @@ class PyAgent:
     #calculate all potential wumpus locations.
     #keeping in mind all visited and stench locations.
     def calc_wumpus_loc(self):
-        if (self.loc[0],self.loc[1]) not in self.stenches:
-            self.stenches.append((self.loc[0],self.loc[1]))
+        if not self.bump:
+            if (self.loc[0],self.loc[1]) not in self.stenches:
+                self.stenches.append((self.loc[0],self.loc[1]))
 
-        # if there is only one wumpus location then we know where the wumpus is
-        if len(self.wumpus) is not 1:
-            self.wumpus = self.find_wumpus() #list of potential wumpus locations
-            
-            # check if a potential wumpus location has already been 
-            # visited. If it has, then there is no wumpus there.
-            for i in range(len(self.visited)):
-                if self.visited[i] in self.wumpus:
-                    self.wumpus.remove(self.visited[i])
-            
-            # calc all stench locations from potential wumpus locations
-            wump_stenches = self.wump_to_stench() 
+            # if there is only one wumpus location then we know where the wumpus is
+            if len(self.wumpus) is not 1:
+                self.wumpus = self.find_wumpus() #list of potential wumpus locations
+                
+                # check if a potential wumpus location has already been 
+                # visited. If it has, then there is no wumpus there.
+                for i in range(len(self.visited)):
+                    if self.visited[i] in self.wumpus:
+                        self.wumpus.remove(self.visited[i])
+                
+                # calc all stench locations from potential wumpus locations
+                wump_stenches = self.wump_to_stench() 
 
-            # if potential stench location is in visited[] but not in stenches[],
-            # there can't be a wumpus at that potential wumpus location
-            for loc, stench_list in wump_stenches.items():
-                # print(loc, stench_list)
-                for item in stench_list:
-                    if item in self.visited and item not in self.stenches:
-                        # print(item)
-                        if loc in self.wumpus:
-                            self.wumpus.remove(loc)
+                # if potential stench location is in visited[] but not in stenches[],
+                # there can't be a wumpus at that potential wumpus location
+                for loc, stench_list in wump_stenches.items():
+                    # print(loc, stench_list)
+                    for item in stench_list:
+                        if item in self.visited and item not in self.stenches:
+                            # print(item)
+                            if loc in self.wumpus:
+                                self.wumpus.remove(loc)
 
-            print("WUMPUS POTENTIAL LOC UPDATED: ", self.wumpus)
-            print("STENCHES UPDATED: ", agent.stenches)
+                print("WUMPUS POTENTIAL LOC UPDATED: ", self.wumpus)
+                print("STENCHES UPDATED: ", agent.stenches)
 
 
                    

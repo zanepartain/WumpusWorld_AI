@@ -14,8 +14,12 @@ class PyAgent:
         self._arrow = True # Agent starts with arrow
         self._gold = False # Agent starts w/o gold
         self.orientation = Orientation.RIGHT # Agent starts right
+        self.visited = []  # all locations the agent has visited
+        self.stenches = [] # all of the stench locations visited
+        self.wumpus = []   # wumpus location 
+
         
-        self.x = False
+        self.x = False 
         self.y = False
         self.bump = False
 
@@ -66,9 +70,48 @@ class PyAgent:
         elif orientation == Orientation.DOWN and y > 1:
             y -= 1
 
-
         self.loc[0] = x
         self.loc[1] = y
+        if (self.loc[0], self.loc[1]) not in self.visited:
+            self.visited.append((self.loc[0], self.loc[1]))
+
+    # find all potential wumpus locations given 
+    # current stench locations on the board
+    def find_wumpus(self):
+        if len(self.stenches) == 1:
+            # this will be for when you only have 1 stench loc calculate 
+            # all 4 potential wumpus locations w/o considering visited locations
+            w1 = (self.stenches[0][0],self.stenches[0][1]+1) # y + 1
+            w2 = (self.stenches[0][0],self.stenches[0][1]-1) # y - 1
+            w3 = (self.stenches[0][0]+1,self.stenches[0][1]) # x + 1
+            w4 = (self.stenches[0][0]-1,self.stenches[0][1]) # x - 1
+            
+            return [w1,w2,w3,w4] #return list of potential wumpus loc
+        elif len(self.stenches) == 2:
+            pass # this will be for when you only have 2 stench loc
+        else:
+            # at this point we have 3 or more stenches, so we 
+            # are definite as to where the wumpus is on the board
+            pass 
+
+
+
+    #calculate all potential wumpus locations.
+    #keeping in mind all visited and stench locations.
+    def calc_wumpus_loc(self):
+        print('VISITED: ', self.visited)
+        if (self.loc[0],self.loc[1]) not in self.stenches:
+            self.stenches.append((self.loc[0],self.loc[1]))
+
+        self.wumpus = self.find_wumpus()
+        print("WUMPUS POTENTIAL LOC: ", self.wumpus)
+        print("STENCHES: ", self.stenches)
+
+        # CASE 1 stench
+        # CASE 2 stench
+        # CASE 3 stench
+
+
 
 
     
@@ -97,6 +140,7 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
 
     if (stench == 1):
         perceptStr += "Stench=True,"
+        agent.calc_wumpus_loc()
         if agent._arrow:
             agent._arrow = False
             return Action.SHOOT
@@ -133,3 +177,4 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
 
 def PyAgent_GameOver (score):
     print("PyAgent_GameOver: score = " + str(score))
+

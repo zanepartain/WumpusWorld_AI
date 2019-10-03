@@ -1,4 +1,4 @@
 size 4
-wumpus 4 3
+wumpus 3 3
 gold 2 3
-pit 4 4
+pit 1 3

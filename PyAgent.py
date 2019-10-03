@@ -6,22 +6,24 @@ import Action # GOFORWARD, GRAB, CLIMB, SHOOT, TURNLEFT, TURNRIGHT
 import Orientation # RIGHT: 0, UP: 1, LEFT: 2, DOWN: 3
 
 import random
+import math
 
 class PyAgent:
 
     def __init__(self):
-        self.loc = [1,1]   # Agent start location
-        self._arrow = True # Agent starts with arrow
-        self._gold = False # Agent starts w/o gold
+        self.loc = [1,1]    # Agent start location
+        self._arrow = True  # Agent starts with arrow
+        self._gold = False  # Agent starts w/o gold
         self.orientation = Orientation.RIGHT # Agent starts right
-        self.visited = []  # all locations the agent has visited
-        self.stenches = [] # all of the stench locations visited
-        self.wumpus = []   # wumpus location 
-
+        self.visited = []   # all locations the agent has visited
+        self.stenches = []  # all of the stench locations visited
+        self.wumpus = []    # wumpus locations
+        self._wumpus = True # wumpus alive ? true : false
         
         self.x = False 
         self.y = False
         self.bump = False
+
 
     # return a random action turn 
     def random_turn (self):
@@ -31,6 +33,7 @@ class PyAgent:
         else:
             return Action.TURNLEFT
 
+
     # adjust orientation of the agent
     def update_orientation (self, action):
         if action == Action.TURNLEFT:
@@ -38,6 +41,9 @@ class PyAgent:
         if action == Action.TURNRIGHT:
             self.orientation = (self.orientation + 3) % 4 
 
+
+    # this is for ensuring the locations stays in bounds
+    # decrement the most recently updated direction by 1
     def dec_location(self):
         if  self.x == True:
             self.loc[0] -= 1
@@ -76,6 +82,7 @@ class PyAgent:
         if (self.loc[0], self.loc[1]) not in self.visited:
             self.visited.append((self.loc[0], self.loc[1]))
 
+
     # find all potential wumpus locations given 
     # current stench locations on the board
     def find_wumpus(self):
@@ -86,14 +93,40 @@ class PyAgent:
             w2 = (self.stenches[0][0],self.stenches[0][1]-1) # y - 1
             w3 = (self.stenches[0][0]+1,self.stenches[0][1]) # x + 1
             w4 = (self.stenches[0][0]-1,self.stenches[0][1]) # x - 1
-            
+
             return [w1,w2,w3,w4] #return list of potential wumpus loc
+
         elif len(self.stenches) == 2:
-            pass # this will be for when you only have 2 stench loc
+            # this will be for when you only have 2 stench loc
+            # if the two cells are in the same row, Top and Bottom stenches
+            if (self.stenches[0][0] == self.stenches[1][0]):
+                y = math.floor(((self.stenches[0][1] + self.stenches[1][1]) / 2)) # e.g. 3+2 = 5/2 = floor(2.5) = 2
+                return [(self.stenches[0][0], y)]
+
+            # if the two cells are in the same column, Left and Right stenches
+            elif (self.stenches[0][1] == self.stenches[1][1]):
+                x = math.floor(((self.stenches[0][0] + self.stenches[1][0]) / 2)) # e.g. 3+2 = 5/2 = floor(2.5) = 2
+                return [(x, self.stenches[0][1])]
+
+            # given 2 diagonalstench locations (s1,s2) simply swap the x, and y 
+            # coordinates to find the potential wumpus locations
+            w1 = ((self.stenches[0][0],self.stenches[1][1])) # (s1:x, s2:y)
+            w2 = ((self.stenches[1][0],self.stenches[0][1])) # (s2:x, s1:y)
+                
+            return [w1,w2]
+
         else:
-            # at this point we have 3 or more stenches, so we 
-            # are definite as to where the wumpus is on the board
-            pass 
+            # at this point we have 3 or more stenches so we can find the Wumpus.
+            # 2/3 or more cells will share a coordinate (x or y) that can we can use to
+            # determine the location of the wumpus.
+            
+            # we are checking to 
+            
+
+
+
+
+            
 
     # 
     def wump_to_stench(self):
@@ -107,22 +140,20 @@ class PyAgent:
         if (self.loc[0],self.loc[1]) not in self.stenches:
             self.stenches.append((self.loc[0],self.loc[1]))
 
-        self.wumpus = self.find_wumpus() #list of potential wumpus locations
-        print("WUMPUS POTENTIAL LOC: ", self.wumpus)
-        print("STENCHES: ", self.stenches)
+        if len(self.wumpus) is not 1:
+            self.wumpus = self.find_wumpus() #list of potential wumpus locations
+            print("WUMPUS POTENTIAL LOC: ", self.wumpus)
+            print("STENCHES: ", self.stenches)
 
-
-        # check if a potential wumpus location has already been 
-        # visited. If it has, then there is no wumpus there.
-        for i in range(len(self.visited)):
-            print(self.visited[i])
-            if self.visited[i] in self.wumpus:
-                self.wumpus.remove(self.visited[i])
-        
+            # check if a potential wumpus location has already been 
+            # visited. If it has, then there is no wumpus there.
+            for i in range(len(self.visited)):
+                if self.visited[i] in self.wumpus:
+                    self.wumpus.remove(self.visited[i])
             
-        print("WUMPUS POTENTIAL LOC UPDATE: ", self.wumpus)
-        print("STENCHES: ", self.stenches)
-         
+                
+            print("WUMPUS POTENTIAL LOC UPDATE: ", self.wumpus)
+                   
 
         # CASE 1 stench
         # CASE 2 stench

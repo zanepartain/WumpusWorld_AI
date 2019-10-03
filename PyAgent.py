@@ -15,7 +15,7 @@ class PyAgent:
         self._arrow = True  # Agent starts with arrow
         self._gold = False  # Agent starts w/o gold
         self.orientation = Orientation.RIGHT # Agent starts right
-        self.visited = []   # all locations the agent has visited
+        self.visited = [(1,1)]   # all locations the agent has visited
         self.stenches = []  # all of the stench locations visited
         self.wumpus = []    # wumpus locations
         self._wumpus = True # wumpus alive ? true : false
@@ -140,24 +140,24 @@ class PyAgent:
 
 
     #returns an array of all possible safe moves from given location
-    def possible_moves(self, unvisited=False):
+    def possible_moves(self):
         # unvisited flag will determine whether or not you want
-        # to get all possible moves that are safe, or all 
-        # possible moves that are safe and unvisited
+        # to get all possible moves that are safe
         moves = []
-        if unvisited is True:
-            # ensure the UP and RIGHT directions are not in
-            if (self.loc[0] + 1, self.loc[1]) not in self.visited and (self.loc[0] + 1, self.loc[1]) not in self.wumpus:
-                moves.append((self.loc[0] + 1, self.loc[1])) # x + 1
-            if (self.loc[0], self.loc[1] + 1) not in self.visited and (self.loc[0], self.loc[1] + 1) not in self.wumpus:
-                moves.append((self.loc[0], self.loc[1] + 1)) # y + 1
 
-            if self.loc[0] > 1:
-                if (self.loc[0]-1, self.loc[1]) not in self.visited and (self.loc[0]-1, self.loc[1]) not in self.wumpus:
-                    moves.append((self.loc[0] - 1, self.loc[1])) # x - 1
-            if self.loc[1] > 1:
-                if (self.loc[0], self.loc[1] - 1) not in self.visited and (self.loc[0], self.loc[1] - 1) not in self.wumpus:
-                    moves.append((self.loc[0] + 1, self.loc[1])) # y - 1
+        # ensure the UP and RIGHT directions are safe 
+        if (self.loc[0] + 1, self.loc[1]) not in self.wumpus:
+            moves.append((self.loc[0] + 1, self.loc[1])) # x + 1
+        if (self.loc[0], self.loc[1] + 1) not in self.wumpus:
+            moves.append((self.loc[0], self.loc[1] + 1)) # y + 1
+
+        # ensure LEFT and DOWN directions are in bounds and safe
+        if self.loc[0] > 1:
+            if (self.loc[0]-1, self.loc[1]) not in self.wumpus:
+                moves.append((self.loc[0] - 1, self.loc[1])) # x - 1
+        if self.loc[1] > 1:
+            if (self.loc[0], self.loc[1] - 1) not in self.wumpus:
+                moves.append((self.loc[0], self.loc[1]-1)) # y - 1
         
         return moves
 
@@ -212,7 +212,6 @@ class PyAgent:
                 print("WUMPUS POTENTIAL LOC UPDATED: ", self.wumpus)
                 print("STENCHES UPDATED: ", agent.stenches)
 
-
                    
     # return True or False whether or not the go forward action is rational
     def logical_move(self):
@@ -220,7 +219,6 @@ class PyAgent:
         x, y = self.loc
         safe = False 
         self.update_location(False) # set the agent forward theoretically
-        print('THEORETICAL FORWARD LOC ', self.loc)
         print("WUMPUS POTENTIAL LOC UPDATE 2.0: ", self.wumpus)
 
         if (self.loc[0], self.loc[1]) not in self.wumpus:
@@ -234,6 +232,24 @@ class PyAgent:
 
         return safe, move
 
+    # set a path for the agent to return home on the quickest path it has traveled
+    def go_home(self):
+        # at this point you have the gold
+        safe_moves = self.possible_moves() 
+
+        # (may need to fix so inly happens once)
+        self.visited.sort() # sort all visited space ascending 
+
+        # go through all locations in ascending order (1,1) (1,2) ...
+        for loc in self.visited:
+            if loc in safe_moves:
+                # if the loc in the safe moves then you 
+                # know the next best move
+                print("NEXT BEST MOVE: ", loc)
+                break
+
+        print("SAFE MOVES: ", safe_moves)
+        return 0
     
 agent = PyAgent() # init agent
 
@@ -249,22 +265,21 @@ def PyAgent_Initialize ():
 count = 0
 
 def PyAgent_Process (stench,breeze,glitter,bump,scream):
-    global count 
-    count += 1
-    print("COUNT ", count)
     global agent
     perceptStr = ""
     print('location: ', agent.loc)
     print('orientation: ', agent.orientation)
     print('arrow: ', agent._arrow)
     print('gold: ', agent._gold)
+    agent.visited.sort()
     print('VISITED: ', agent.visited)
     print("STENCHES: ", agent.stenches)
     print("WUMPUS POTENTIAL LOC: ", agent.wumpus)
     
     # if agent has gold; GO HOME ad CLIMB
     if agent._gold:
-        if agent.loc is [1,1]:
+        action = agent.go_home() # return on quickest path back to start
+        if agent.loc == [1,1]:
             return Action.CLIMB
 
     if (stench == 1):
@@ -308,7 +323,7 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
     _flag = random.randint(0,10001)
     if _flag % 2 == 0:
         if safe is True:
-            print('MOVE: ', move)
+            print('TO MOVE: ', move)
             agent.update_location()
             return Action.GOFORWARD
     # going forward is not safe so turn

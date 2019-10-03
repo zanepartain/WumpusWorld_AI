@@ -55,22 +55,18 @@ class PyAgent:
                 
 
     # update the current location of agent
-    def update_location (self):
+    def update_location (self, real=True):
         x,y = self.loc
         orientation = self.orientation
 
         if orientation == Orientation.RIGHT:
-            if self.bump == True:
-                self.dec_location()
-            else:    
+            if self.bump is False:
                 x += 1
                 self.x = True
         elif orientation == Orientation.LEFT and x > 1:
             x -= 1
         elif orientation == Orientation.UP:
-            if self.bump == True:
-                self.dec_location()
-            else:    
+           if self.bump is False:
                 y += 1
                 self.y = True
         elif orientation == Orientation.DOWN and y > 1:
@@ -79,8 +75,10 @@ class PyAgent:
         self.loc[0] = x
         self.loc[1] = y
 
-        if (self.loc[0], self.loc[1]) not in self.visited:
-            self.visited.append((self.loc[0], self.loc[1]))
+        #only update visited if its a real move and not used for agent logic 
+        if real is True:
+            if (self.loc[0], self.loc[1]) not in self.visited:
+                self.visited.append((self.loc[0], self.loc[1]))
 
 
     # find all potential wumpus locations given 
@@ -119,19 +117,41 @@ class PyAgent:
             # at this point we have 3 or more stenches so we can find the Wumpus.
             # 2/3 or more cells will share a coordinate (x or y) that can we can use to
             # determine the location of the wumpus.
+            x = -1
+            y = -1
+            self.stenches.sort() # sort stenches by x in (x,y)
+            for i in range(len(self.stenches) - 1):
+                if self.stenches[i][0] == self.stenches[i+1][0]:
+                    x = i # case of two x's the same 
+                if self.stenches[i][1] == self.stenches[i+1][1]:
+                    y = i # case of two y's the same 
             
-            # we are checking to 
-            
+            if x is -1:
+                # x is -1, we know that the loc is between our coords with same y
+                return [(math.floor(((self.stenches[y][0] + self.stenches[y+1][0]) / 2)), self.stenches[y][1])]
+            if y is -1:
+                # y is -1, we know that the loc is between our coords with same x
+                return [(self.stenches[x][0], math.floor(((self.stenches[x][1] + self.stenches[x+1][1]) / 2)))]
+            else:
+                # we have both x and y
+                return [(self.stenches[x][0], self.stenches[y][1])]
 
 
-
-
-            
-
-    # 
+    # calc all the potential stench locations for all potential wumpus locations.
+    # if the potential stench cell is not in the stenches[] but is in visited[]
+    # we can say that there is no wumpus in the potential wumpus location.
     def wump_to_stench(self):
-        pass
+        wump_stenches = {}
+        for wump_loc in self.wumpus:
+            w1 = (wump_loc[0],wump_loc[1]+1) # y + 1
+            w2 = (wump_loc[0],wump_loc[1]-1) # y - 1
+            w3 = (wump_loc[0]+1,wump_loc[1]) # x + 1
+            w4 = (wump_loc[0]-1,wump_loc[1]) # x - 1
 
+            wump_stenches[wump_loc] = {w1,w2,w3,w4} # add to dictionary
+        
+        return wump_stenches
+            
 
     #calculate all potential wumpus locations.
     #keeping in mind all visited and stench locations.
@@ -140,6 +160,7 @@ class PyAgent:
         if (self.loc[0],self.loc[1]) not in self.stenches:
             self.stenches.append((self.loc[0],self.loc[1]))
 
+        # if there is only one wumpus location then we know where the wumpus is
         if len(self.wumpus) is not 1:
             self.wumpus = self.find_wumpus() #list of potential wumpus locations
             print("WUMPUS POTENTIAL LOC: ", self.wumpus)
@@ -151,14 +172,42 @@ class PyAgent:
                 if self.visited[i] in self.wumpus:
                     self.wumpus.remove(self.visited[i])
             
-                
             print("WUMPUS POTENTIAL LOC UPDATE: ", self.wumpus)
+
+            # calc all stench locations from potential wumpus locations
+            wump_stenches = self.wump_to_stench() 
+
+            # in visited but not in stench, so therefore there can't be a wumpus
+            for loc, stench_list in wump_stenches.items():
+                # print(loc, stench_list)
+                for item in stench_list:
+                    if item in self.visited and item not in self.stenches:
+                        # print(item)
+                        if loc in self.wumpus:
+                            self.wumpus.remove(loc)
+
+            print("WUMPUS POTENTIAL LOC UPDATE 2.0: ", self.wumpus)
+
                    
+    # return True or False whether or not the go forward action is rational
+    def logical_move(self):
+        x, y = self.loc
+        safe = False 
+        self.update_location(False) # set the agent forward theoretically
+        print('THEORETICAL LOC ', self.loc)
+        print("WUMPUS POTENTIAL LOC UPDATE 2.0: ", self.wumpus)
 
-        # CASE 1 stench
-        # CASE 2 stench
-        # CASE 3 stench
+        if (self.loc[0], self.loc[1]) not in self.wumpus:
+            safe = True 
+        
+        # decrement the theoretical location back to actual location
+        self.dec_location()
+        print(x, y)
+        self.loc[0] = x
+        self.loc[1] = y
+        print(self.loc)
 
+        return safe
 
 
 
@@ -183,15 +232,16 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
     print('arrow: ', agent._arrow)
     print('gold: ', agent._gold)
     
-    if agent.loc == [1,1] and agent._gold:
+    if agent.loc is [1,1] and agent._gold:
         return Action.CLIMB
 
     if (stench == 1):
         perceptStr += "Stench=True,"
         agent.calc_wumpus_loc()
-        if agent._arrow:
-            agent._arrow = False
-            return Action.SHOOT
+        #don't kill wumpus for this sim
+        #if agent._arrow:
+        #    agent._arrow = False
+        #   return Action.SHOOT
     else:
         perceptStr += "Stench=False,"
     if (breeze == 1):
@@ -220,8 +270,22 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
     print("PyAgent_Process: " + perceptStr)
     
     # update location then move
-    agent.update_location()
-    return Action.GOFORWARD
+    _flag = random.randint(0,10000)
+    if _flag % 2 == 0:
+        action = agent.random_turn()
+        agent.update_orientation(action)
+        print(agent.loc)
+        return action
+    else:
+        if agent.logical_move() is True:
+            agent.update_location()
+            return Action.GOFORWARD
+        else:
+            action = agent.random_turn()
+            agent.update_orientation(action)
+            print(agent.loc)
+            return action
+        
 
 def PyAgent_GameOver (score):
     print("PyAgent_GameOver: score = " + str(score))

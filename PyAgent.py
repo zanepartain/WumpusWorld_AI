@@ -72,6 +72,7 @@ class PyAgent:
 
         self.loc[0] = x
         self.loc[1] = y
+
         if (self.loc[0], self.loc[1]) not in self.visited:
             self.visited.append((self.loc[0], self.loc[1]))
 
@@ -94,6 +95,9 @@ class PyAgent:
             # are definite as to where the wumpus is on the board
             pass 
 
+    # 
+    def wump_to_stench(self):
+        pass
 
 
     #calculate all potential wumpus locations.
@@ -103,9 +107,22 @@ class PyAgent:
         if (self.loc[0],self.loc[1]) not in self.stenches:
             self.stenches.append((self.loc[0],self.loc[1]))
 
-        self.wumpus = self.find_wumpus()
+        self.wumpus = self.find_wumpus() #list of potential wumpus locations
         print("WUMPUS POTENTIAL LOC: ", self.wumpus)
         print("STENCHES: ", self.stenches)
+
+
+        # check if a potential wumpus location has already been 
+        # visited. If it has, then there is no wumpus there.
+        for i in range(len(self.visited)):
+            print(self.visited[i])
+            if self.visited[i] in self.wumpus:
+                self.wumpus.remove(self.visited[i])
+        
+            
+        print("WUMPUS POTENTIAL LOC UPDATE: ", self.wumpus)
+        print("STENCHES: ", self.stenches)
+         
 
         # CASE 1 stench
         # CASE 2 stench
@@ -134,7 +151,7 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
     print('orientation: ', agent.orientation)
     print('arrow: ', agent._arrow)
     print('gold: ', agent._gold)
-
+    
     if agent.loc == [1,1] and agent._gold:
         return Action.CLIMB
 

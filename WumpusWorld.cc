@@ -37,19 +37,19 @@ WumpusWorld::WumpusWorld (int size)
 	currentState.goldLocation = Location (x, y);
 
 	// Choose pit locations (anywhere except [1,1])
-	for (x = 1; x <= size; x++)
-	{
-		for (y = 1; y <= size; y++)
-		{
-			if ((x != 1) || (y != 1))
-			{
-				if ((rand() % 1000) < (PIT_PROBABILITY * 1000))
-				{
-					currentState.pitLocations.push_back (Location (x, y));
-				}
-			}
-		}
-	}
+	// for (x = 1; x <= size; x++)
+	// {
+	// 	for (y = 1; y <= size; y++)
+	// 	{
+	// 		if ((x != 1) || (y != 1))
+	// 		{
+	// 			if ((rand() % 1000) < (PIT_PROBABILITY * 1000))
+	// 			{
+	// 				currentState.pitLocations.push_back (Location (x, y));
+	// 			}
+	// 		}
+	// 	}
+	// }
 }
 
 WumpusWorld::WumpusWorld (char* worldFile)

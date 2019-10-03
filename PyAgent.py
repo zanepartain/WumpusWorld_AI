@@ -22,7 +22,7 @@ class PyAgent:
         
         self.x = False 
         self.y = False
-        self.bump = False
+        self.bump = False # flag for when bump is true
 
 
     # return a random action turn 
@@ -58,7 +58,7 @@ class PyAgent:
     def update_location (self, real=True):
         x,y = self.loc
         orientation = self.orientation
-
+    
         if orientation == Orientation.RIGHT:
             if self.bump is False:
                 x += 1
@@ -75,6 +75,7 @@ class PyAgent:
         self.loc[0] = x
         self.loc[1] = y
 
+
         #only update visited if its a real move and not used for agent logic 
         if real is True:
             if (self.loc[0], self.loc[1]) not in self.visited:
@@ -84,34 +85,35 @@ class PyAgent:
     # find all potential wumpus locations given 
     # current stench locations on the board
     def find_wumpus(self):
-        if len(self.stenches) == 1:
-            # this will be for when you only have 1 stench loc calculate 
-            # all 4 potential wumpus locations w/o considering visited locations
-            w1 = (self.stenches[0][0],self.stenches[0][1]+1) # y + 1
-            w2 = (self.stenches[0][0],self.stenches[0][1]-1) # y - 1
-            w3 = (self.stenches[0][0]+1,self.stenches[0][1]) # x + 1
-            w4 = (self.stenches[0][0]-1,self.stenches[0][1]) # x - 1
+        if not self.bump:
+            if len(self.stenches) == 1:
+                # this will be for when you only have 1 stench loc calculate 
+                # all 4 potential wumpus locations w/o considering visited locations
+                w1 = (self.stenches[0][0],self.stenches[0][1]+1) # y + 1
+                w2 = (self.stenches[0][0],self.stenches[0][1]-1) # y - 1
+                w3 = (self.stenches[0][0]+1,self.stenches[0][1]) # x + 1
+                w4 = (self.stenches[0][0]-1,self.stenches[0][1]) # x - 1
 
-            return [w1,w2,w3,w4] #return list of potential wumpus loc
+                return [w1,w2,w3,w4] #return list of potential wumpus loc
 
-        elif len(self.stenches) == 2:
-            # this will be for when you only have 2 stench loc
-            # if the two cells are in the same row, Top and Bottom stenches
-            if (self.stenches[0][0] == self.stenches[1][0]):
-                y = math.floor(((self.stenches[0][1] + self.stenches[1][1]) / 2)) # e.g. 3+2 = 5/2 = floor(2.5) = 2
-                return [(self.stenches[0][0], y)]
+            elif len(self.stenches) == 2:
+                # this will be for when you only have 2 stench loc
+                # if the two cells are in the same row, Top and Bottom stenches
+                if (self.stenches[0][0] == self.stenches[1][0]):
+                    y = math.floor(((self.stenches[0][1] + self.stenches[1][1]) / 2)) # e.g. 3+2 = 5/2 = floor(2.5) = 2
+                    return [(self.stenches[0][0], y)]
 
-            # if the two cells are in the same column, Left and Right stenches
-            elif (self.stenches[0][1] == self.stenches[1][1]):
-                x = math.floor(((self.stenches[0][0] + self.stenches[1][0]) / 2)) # e.g. 3+2 = 5/2 = floor(2.5) = 2
-                return [(x, self.stenches[0][1])]
+                # if the two cells are in the same column, Left and Right stenches
+                elif (self.stenches[0][1] == self.stenches[1][1]):
+                    x = math.floor(((self.stenches[0][0] + self.stenches[1][0]) / 2)) # e.g. 3+2 = 5/2 = floor(2.5) = 2
+                    return [(x, self.stenches[0][1])]
 
-            # given 2 diagonalstench locations (s1,s2) simply swap the x, and y 
-            # coordinates to find the potential wumpus locations
-            w1 = ((self.stenches[0][0],self.stenches[1][1])) # (s1:x, s2:y)
-            w2 = ((self.stenches[1][0],self.stenches[0][1])) # (s2:x, s1:y)
-                
-            return [w1,w2]
+                # given 2 diagonalstench locations (s1,s2) simply swap the x, and y 
+                # coordinates to find the potential wumpus locations
+                w1 = ((self.stenches[0][0],self.stenches[1][1])) # (s1:x, s2:y)
+                w2 = ((self.stenches[1][0],self.stenches[0][1])) # (s2:x, s1:y)
+                    
+                return [w1,w2]
 
         else:
             # at this point we have 3 or more stenches so we can find the Wumpus.
@@ -137,6 +139,30 @@ class PyAgent:
                 return [(self.stenches[x][0], self.stenches[y][1])]
 
 
+    #returns an array of all possible safe moves from given location
+    def possible_moves(self, unvisited=False):
+        # unvisited flag will determine whether or not you want
+        # to get all possible moves that are safe, or all 
+        # possible moves that are safe and unvisited
+        moves = []
+        if unvisited is True:
+            # ensure the UP and RIGHT directions are not in
+            if (self.loc[0] + 1, self.loc[1]) not in self.visited and (self.loc[0] + 1, self.loc[1]) not in self.wumpus:
+                moves.append((self.loc[0] + 1, self.loc[1])) # x + 1
+            if (self.loc[0], self.loc[1] + 1) not in self.visited and (self.loc[0], self.loc[1] + 1) not in self.wumpus:
+                moves.append((self.loc[0], self.loc[1] + 1)) # y + 1
+
+            if self.loc[0] > 1:
+                if (self.loc[0]-1, self.loc[1]) not in self.visited and (self.loc[0]-1, self.loc[1]) not in self.wumpus:
+                    moves.append((self.loc[0] - 1, self.loc[1])) # x - 1
+            if self.loc[1] > 1:
+                if (self.loc[0], self.loc[1] - 1) not in self.visited and (self.loc[0], self.loc[1] - 1) not in self.wumpus:
+                    moves.append((self.loc[0] + 1, self.loc[1])) # y - 1
+        
+        return moves
+
+
+
     # calc all the potential stench locations for all potential wumpus locations.
     # if the potential stench cell is not in the stenches[] but is in visited[]
     # we can say that there is no wumpus in the potential wumpus location.
@@ -148,7 +174,7 @@ class PyAgent:
             w3 = (wump_loc[0]+1,wump_loc[1]) # x + 1
             w4 = (wump_loc[0]-1,wump_loc[1]) # x - 1
 
-            wump_stenches[wump_loc] = {w1,w2,w3,w4} # add to dictionary
+            wump_stenches[wump_loc] = {w1,w2,w3,w4} # add dictionary entry
         
         return wump_stenches
             
@@ -163,7 +189,6 @@ class PyAgent:
         if len(self.wumpus) is not 1:
             self.wumpus = self.find_wumpus() #list of potential wumpus locations
             
-
             # check if a potential wumpus location has already been 
             # visited. If it has, then there is no wumpus there.
             for i in range(len(self.visited)):
@@ -173,7 +198,8 @@ class PyAgent:
             # calc all stench locations from potential wumpus locations
             wump_stenches = self.wump_to_stench() 
 
-            # in visited but not in stench, so therefore there can't be a wumpus
+            # if potential stench location is in visited[] but not in stenches[],
+            # there can't be a wumpus at that potential wumpus location
             for loc, stench_list in wump_stenches.items():
                 # print(loc, stench_list)
                 for item in stench_list:
@@ -183,27 +209,29 @@ class PyAgent:
                             self.wumpus.remove(loc)
 
             print("WUMPUS POTENTIAL LOC UPDATED: ", self.wumpus)
+            print("STENCHES UPDATED: ", agent.stenches)
+
 
                    
     # return True or False whether or not the go forward action is rational
     def logical_move(self):
+        move = ()
         x, y = self.loc
         safe = False 
         self.update_location(False) # set the agent forward theoretically
-        print('THEORETICAL LOC ', self.loc)
+        print('THEORETICAL FORWARD LOC ', self.loc)
         print("WUMPUS POTENTIAL LOC UPDATE 2.0: ", self.wumpus)
 
         if (self.loc[0], self.loc[1]) not in self.wumpus:
             safe = True 
-        
+            move = (self.loc[0], self.loc[1])
+
         # decrement the theoretical location back to actual location
         self.dec_location()
         self.loc[0] = x
         self.loc[1] = y
 
-        return safe
-
-
+        return safe, move
 
     
 agent = PyAgent() # init agent
@@ -217,8 +245,12 @@ def PyAgent_Destructor ():
 def PyAgent_Initialize ():
     print("PyAgent_Initialize")
 
+count = 0
 
 def PyAgent_Process (stench,breeze,glitter,bump,scream):
+    global count 
+    count += 1
+    print("COUNT ", count)
     global agent
     perceptStr = ""
     print('location: ', agent.loc)
@@ -229,15 +261,17 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
     print("STENCHES: ", agent.stenches)
     print("WUMPUS POTENTIAL LOC: ", agent.wumpus)
     
-    if agent.loc is [1,1] and agent._gold:
-        return Action.CLIMB
+    # if agent has gold; GO HOME ad CLIMB
+    if agent._gold:
+        if agent.loc is [1,1]:
+            return Action.CLIMB
 
     if (stench == 1):
         perceptStr += "Stench=True,"
         agent.calc_wumpus_loc()
         #don't kill wumpus for this sim
         #if agent._arrow:
-        #    agent._arrow = False
+        #   agent._arrow = False
         #   return Action.SHOOT
     else:
         perceptStr += "Stench=False,"
@@ -268,24 +302,19 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
     
     # update location then move
     # randomly turn or go forward (if can) otherwise turn 
-    _flag = random.randint(0,10000)
+    # check if going forward is safe
+    safe, move = agent.logical_move()
+    _flag = random.randint(0,10001)
     if _flag % 2 == 0:
-        action = agent.random_turn()
-        agent.update_orientation(action)
-        print(agent.loc)
-        return action
-    else:
-        # check if going forward is safe
-        if agent.logical_move() is True:
+        if safe is True:
+            print('MOVE: ', move)
             agent.update_location()
             return Action.GOFORWARD
-        # going forward is not safe so turn
-        else:
-            action = agent.random_turn()
-            agent.update_orientation(action)
-            print(agent.loc)
-            return action
-        
+    # going forward is not safe so turn
+    action = agent.random_turn()
+    agent.update_orientation(action)
+    print(agent.loc)
+    return action
 
 def PyAgent_GameOver (score):
     print("PyAgent_GameOver: score = " + str(score))

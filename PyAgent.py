@@ -156,15 +156,13 @@ class PyAgent:
     #calculate all potential wumpus locations.
     #keeping in mind all visited and stench locations.
     def calc_wumpus_loc(self):
-        print('VISITED: ', self.visited)
         if (self.loc[0],self.loc[1]) not in self.stenches:
             self.stenches.append((self.loc[0],self.loc[1]))
 
         # if there is only one wumpus location then we know where the wumpus is
         if len(self.wumpus) is not 1:
             self.wumpus = self.find_wumpus() #list of potential wumpus locations
-            print("WUMPUS POTENTIAL LOC: ", self.wumpus)
-            print("STENCHES: ", self.stenches)
+            
 
             # check if a potential wumpus location has already been 
             # visited. If it has, then there is no wumpus there.
@@ -172,8 +170,6 @@ class PyAgent:
                 if self.visited[i] in self.wumpus:
                     self.wumpus.remove(self.visited[i])
             
-            print("WUMPUS POTENTIAL LOC UPDATE: ", self.wumpus)
-
             # calc all stench locations from potential wumpus locations
             wump_stenches = self.wump_to_stench() 
 
@@ -186,7 +182,7 @@ class PyAgent:
                         if loc in self.wumpus:
                             self.wumpus.remove(loc)
 
-            print("WUMPUS POTENTIAL LOC UPDATE 2.0: ", self.wumpus)
+            print("WUMPUS POTENTIAL LOC UPDATED: ", self.wumpus)
 
                    
     # return True or False whether or not the go forward action is rational
@@ -202,10 +198,8 @@ class PyAgent:
         
         # decrement the theoretical location back to actual location
         self.dec_location()
-        print(x, y)
         self.loc[0] = x
         self.loc[1] = y
-        print(self.loc)
 
         return safe
 
@@ -231,6 +225,9 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
     print('orientation: ', agent.orientation)
     print('arrow: ', agent._arrow)
     print('gold: ', agent._gold)
+    print('VISITED: ', agent.visited)
+    print("STENCHES: ", agent.stenches)
+    print("WUMPUS POTENTIAL LOC: ", agent.wumpus)
     
     if agent.loc is [1,1] and agent._gold:
         return Action.CLIMB
@@ -270,6 +267,7 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
     print("PyAgent_Process: " + perceptStr)
     
     # update location then move
+    # randomly turn or go forward (if can) otherwise turn 
     _flag = random.randint(0,10000)
     if _flag % 2 == 0:
         action = agent.random_turn()
@@ -277,9 +275,11 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
         print(agent.loc)
         return action
     else:
+        # check if going forward is safe
         if agent.logical_move() is True:
             agent.update_location()
             return Action.GOFORWARD
+        # going forward is not safe so turn
         else:
             action = agent.random_turn()
             agent.update_orientation(action)

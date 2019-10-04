@@ -11,25 +11,27 @@ import math
 class PyAgent:
 
     def __init__(self):
-        self.loc = [1,1]    # Agent start location
-        self._arrow = True  # Agent starts with arrow
-        self._gold = False  # Agent starts w/o gold
+        self.loc = [1,1]       # Agent start location
+        self._arrow = True     # Agent starts with arrow
+        self._gold = False     # Agent starts w/o gold
+        self.visited = [(1,1)] # all locations the agent has visited
+        self.stenches = []     # all of the stench locations visited
+        self.wumpus = []       # wumpus locations
+        self._wumpus = True    # wumpus alive ? true : false
+        self._sorted = True    # whether or not the visited list is sorted
         self.orientation = Orientation.RIGHT # Agent starts right
-        self.visited = [(1,1)]   # all locations the agent has visited
-        self.stenches = []  # all of the stench locations visited
-        self.wumpus = []    # wumpus locations
-        self._wumpus = True # wumpus alive ? true : false
         
+        # flags for when bump is true
+        self.bump = False 
         self.x = False 
         self.y = False
-        self.bump = False # flag for when bump is true
 
 
     # return a random action turn 
     def random_turn (self):
         r = random.randint(0,10000)
         if r % 2 == 0:
-            return Action.TURNRIGHT
+            return Action.TURNLEFT
         else:
             return Action.TURNLEFT
 
@@ -232,12 +234,12 @@ class PyAgent:
 
         return safe, move
 
+
     # set a path for the agent to return home on the quickest path it has traveled
     def go_home(self):
-        # at this point you have the gold
         safe_moves = self.possible_moves() 
+        print("SAFE MOVES: ", safe_moves)
 
-        # (may need to fix so inly happens once)
         self.visited.sort() # sort all visited space ascending 
 
         # go through all locations in ascending order (1,1) (1,2) ...
@@ -246,11 +248,18 @@ class PyAgent:
                 # if the loc in the safe moves then you 
                 # know the next best move
                 print("NEXT BEST MOVE: ", loc)
-                break
-
-        print("SAFE MOVES: ", safe_moves)
-        return 0
+                return loc
     
+    
+    def is_closer(self, next_move, best_move):
+        self.visited.sort()
+        if next_move < best_move:
+            return True
+        
+
+        return False
+
+
 agent = PyAgent() # init agent
 
 def PyAgent_Constructor ():
@@ -267,20 +276,36 @@ count = 0
 def PyAgent_Process (stench,breeze,glitter,bump,scream):
     global agent
     perceptStr = ""
+    _flag = random.randint(0,10001)
     print('location: ', agent.loc)
     print('orientation: ', agent.orientation)
     print('arrow: ', agent._arrow)
     print('gold: ', agent._gold)
-    agent.visited.sort()
     print('VISITED: ', agent.visited)
     print("STENCHES: ", agent.stenches)
     print("WUMPUS POTENTIAL LOC: ", agent.wumpus)
     
     # if agent has gold; GO HOME ad CLIMB
-    if agent._gold:
-        action = agent.go_home() # return on quickest path back to start
+    if agent._gold and bump != 1:
+        # return on quickest path back to start one cell at a time
+        best_move = agent.go_home() 
+        safe, next_move = agent.logical_move()  # check if going forward is safe
         if agent.loc == [1,1]:
             return Action.CLIMB
+
+        print('NEXT MOVE: ', next_move)
+        # theoretically the best move 
+        if next_move == best_move:
+            agent.update_location()
+            return Action.GOFORWARD
+        elif safe is True and agent.is_closer(next_move,best_move):
+            agent.update_location()
+            return Action.GOFORWARD
+        else:
+            action = Action.TURNLEFT
+            agent.update_orientation(action)
+            return action
+
 
     if (stench == 1):
         perceptStr += "Stench=True,"
@@ -320,17 +345,21 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
     # randomly turn or go forward (if can) otherwise turn 
     # check if going forward is safe
     safe, move = agent.logical_move()
-    _flag = random.randint(0,10001)
     if _flag % 2 == 0:
         if safe is True:
             print('TO MOVE: ', move)
             agent.update_location()
             return Action.GOFORWARD
-    # going forward is not safe so turn
+        # going forward is not safe so turn
+        if move in agent.visited:
+            action = agent.random_turn()
+            agent.update_orientation(action)
+            return action
     action = agent.random_turn()
     agent.update_orientation(action)
-    print(agent.loc)
     return action
+    
+
 
 def PyAgent_GameOver (score):
     print("PyAgent_GameOver: score = " + str(score))

@@ -117,28 +117,28 @@ class PyAgent:
                     
                 return [w1,w2]
 
-        else:
-            # at this point we have 3 or more stenches so we can find the Wumpus.
-            # 2/3 or more cells will share a coordinate (x or y) that can we can use to
-            # determine the location of the wumpus.
-            x = -1
-            y = -1
-            self.stenches.sort() # sort stenches by x in (x,y)
-            for i in range(len(self.stenches) - 1):
-                if self.stenches[i][0] == self.stenches[i+1][0]:
-                    x = i # case of two x's the same 
-                if self.stenches[i][1] == self.stenches[i+1][1]:
-                    y = i # case of two y's the same 
-            
-            if x is -1:
-                # x is -1, we know that the loc is between our coords with same y
-                return [(math.floor(((self.stenches[y][0] + self.stenches[y+1][0]) / 2)), self.stenches[y][1])]
-            if y is -1:
-                # y is -1, we know that the loc is between our coords with same x
-                return [(self.stenches[x][0], math.floor(((self.stenches[x][1] + self.stenches[x+1][1]) / 2)))]
             else:
-                # we have both x and y
-                return [(self.stenches[x][0], self.stenches[y][1])]
+                # at this point we have 3 or more stenches so we can find the Wumpus.
+                # 2/3 or more cells will share a coordinate (x or y) that can we can use to
+                # determine the location of the wumpus.
+                x = -1
+                y = -1
+                self.stenches.sort() # sort stenches by x in (x,y)
+                for i in range(len(self.stenches) - 1):
+                    if self.stenches[i][0] == self.stenches[i+1][0]:
+                        x = i # case of two x's the same 
+                    if self.stenches[i][1] == self.stenches[i+1][1]:
+                        y = i # case of two y's the same 
+                
+                if x is -1:
+                    # x is -1, we know that the loc is between our coords with same y
+                    return [(math.floor(((self.stenches[y][0] + self.stenches[y+1][0]) / 2)), self.stenches[y][1])]
+                if y is -1:
+                    # y is -1, we know that the loc is between our coords with same x
+                    return [(self.stenches[x][0], math.floor(((self.stenches[x][1] + self.stenches[x+1][1]) / 2)))]
+                else:
+                    # we have both x and y
+                    return [(self.stenches[x][0], self.stenches[y][1])]
 
 
     #returns an array of all possible safe moves from given location
@@ -251,11 +251,11 @@ class PyAgent:
                 return loc
     
     
+    # return True if the next_move param is closer to [1,1] than the best move
     def is_closer(self, next_move, best_move):
         self.visited.sort()
         if next_move < best_move:
             return True
-        
 
         return False
 
@@ -285,22 +285,29 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
     print("STENCHES: ", agent.stenches)
     print("WUMPUS POTENTIAL LOC: ", agent.wumpus)
     
-    # if agent has gold; GO HOME ad CLIMB
+    # if agent has gold; GO HOME or CLIMB
     if agent._gold and bump != 1:
-        # return on quickest path back to start one cell at a time
-        best_move = agent.go_home() 
-        safe, next_move = agent.logical_move()  # check if going forward is safe
         if agent.loc == [1,1]:
             return Action.CLIMB
 
+        best_move = agent.go_home() # return on quickest path back to start one cell at a time
+        safe, next_move = agent.logical_move()  # check if going forward is safe
+
         print('NEXT MOVE: ', next_move)
-        # theoretically the best move 
+        # the best theoretical move to get to [1,1] 
+        # from current location is also the next potential move
         if next_move == best_move:
             agent.update_location()
             return Action.GOFORWARD
+
+        # if you were to move forward and the area is safe (visited or unvisited)
+        # and it gets you closer to [1,1] than your best move. Then GOFORWARD!!
         elif safe is True and agent.is_closer(next_move,best_move):
             agent.update_location()
             return Action.GOFORWARD
+
+        # your best theoretical move is not your potential next move. And your
+        # potential next move is either not safe, or will take you in the wrong direction
         else:
             action = Action.TURNLEFT
             agent.update_orientation(action)
@@ -310,7 +317,7 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
     if (stench == 1):
         perceptStr += "Stench=True,"
         agent.calc_wumpus_loc()
-        #don't kill wumpus for this sim
+        # don't kill wumpus for this sim
         #if agent._arrow:
         #   agent._arrow = False
         #   return Action.SHOOT
@@ -341,20 +348,19 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
         perceptStr += "Scream=False"
     print("PyAgent_Process: " + perceptStr)
     
+
     # update location then move
     # randomly turn or go forward (if can) otherwise turn 
-    # check if going forward is safe
     safe, move = agent.logical_move()
     if _flag % 2 == 0:
         if safe is True:
             print('TO MOVE: ', move)
             agent.update_location()
             return Action.GOFORWARD
-        # going forward is not safe so turn
-        if move in agent.visited:
-            action = agent.random_turn()
-            agent.update_orientation(action)
-            return action
+        action = agent.random_turn()
+        agent.update_orientation(action)
+        return action
+    # randomly turn
     action = agent.random_turn()
     agent.update_orientation(action)
     return action

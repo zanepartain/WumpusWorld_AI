@@ -17,6 +17,8 @@ class PyAgent:
         self.visited = [(1,1)] # all locations the agent has visited
         self.stenches = []     # all of the stench locations visited
         self.wumpus = []       # wumpus locations
+        self.gold_road = []    # path to previous gold 
+        self.golden_ticket = False   # let agent know they are on previous known gold path
         self._wumpus = True    # wumpus alive ? true : false
         self._sorted = True    # whether or not the visited list is sorted
         self.orientation = Orientation.RIGHT # Agent starts right
@@ -61,7 +63,7 @@ class PyAgent:
         x,y = self.loc
         orientation = self.orientation
     
-        # only when the bump flag is false increment the x & y coords
+        # only when the bump flag is false increment the x & y
         if orientation == Orientation.RIGHT:
             if self.bump is False:
                 x += 1
@@ -75,9 +77,14 @@ class PyAgent:
         elif orientation == Orientation.DOWN and y > 1:
             y -= 1
 
-        # set agent location
         self.loc[0] = x
         self.loc[1] = y
+
+
+        #only update visited if its a real move and not used for agent logic 
+        if real is True:
+            if (self.loc[0], self.loc[1]) not in self.visited:
+                self.visited.append((self.loc[0], self.loc[1]))
 
 
     # find all potential wumpus locations given 
@@ -219,9 +226,20 @@ class PyAgent:
         self.update_location(False) # set the agent forward theoretically
         print("WUMPUS POTENTIAL LOC UPDATE 2.0: ", self.wumpus)
 
-        if (self.loc[0], self.loc[1]) not in self.wumpus:
-            safe = True 
-            move = (self.loc[0], self.loc[1])
+        if self._gold is False and len(self.gold_road) > 0:
+            gold_move = self.gold_road.pop()
+            if gold_move not in self.wumpus:
+                print("HIHIHIHIHH")
+                safe = True
+                move = gold_move
+                self.golden_ticket = True
+            elif (self.loc[0], self.loc[1]) not in self.wumpus:
+                safe = True 
+                move = (self.loc[0], self.loc[1])
+        else:
+            if (self.loc[0], self.loc[1]) not in self.wumpus:
+                safe = True 
+                move = (self.loc[0], self.loc[1])
 
         # decrement the theoretical location back to actual location
         self.dec_location()
@@ -245,7 +263,17 @@ class PyAgent:
                 # know the next best move
                 print("NEXT BEST MOVE: ", loc)
                 return loc
-    
+
+
+    # push the cells on the path back from the gold to [1,1] in a stack.
+    # the stack will be used to for the agent to move to first (if safe)
+    def money_grabber(self, cell=None):
+        if cell is None:
+            self.gold_road.append((self.loc[0], self.loc[1]))
+        elif cell not in self.gold_road:
+            print('MONEY GRABBER: ', self.gold_road)
+            self.gold_road.append(cell)
+
     
     # return True if the next_move param is closer to [1,1] than the best move
     def is_closer(self, next_move, best_move):
@@ -273,6 +301,7 @@ count = 0
 
 def PyAgent_Process (stench,breeze,glitter,bump,scream):
     global agent
+    print("GOLD ROAD:", agent.gold_road)
     perceptStr = ""
     _flag = random.randint(0,10001)
     print('location: ', agent.loc)
@@ -296,12 +325,14 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
         # from current location is also the next potential move
         if next_move == best_move:
             agent.update_location()
+            agent.money_grabber(best_move)
             return Action.GOFORWARD
 
         # if you were to move forward and the area is safe (visited or unvisited)
         # and it gets you closer to [1,1] than your best move. Then GOFORWARD!!
         elif safe is True and agent.is_closer(next_move,best_move):
             agent.update_location()
+            agent.money_grabber(next_move)
             return Action.GOFORWARD
 
         # your best theoretical move is not your potential next move. And your
@@ -310,6 +341,8 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
             action = Action.TURNLEFT
             agent.update_orientation(action)
             return action
+
+        
 
 
     if (stench == 1):
@@ -328,6 +361,8 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
     if (glitter == 1):
         perceptStr += "Glitter=True,"
         agent._gold = True
+       
+        agent.money_grabber()
         return Action.GRAB
     else:
         perceptStr += "Glitter=False,"
@@ -350,8 +385,14 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
     # update location then move
     # randomly turn or go forward (if can) otherwise turn 
     safe, move = agent.logical_move()
-    if _flag % 2 == 0:
-        if safe is True:
+
+    if safe is True:
+        if agent.golden_ticket is True:
+            agent.golden_ticket = False
+            print('TO MOVE GOLDEN TICKET: ', move)
+            agent.update_location()
+            return Action.GOFORWARD
+        if _flag % 2 == 0:
             print('TO MOVE: ', move)
             agent.update_location()
             return Action.GOFORWARD

@@ -61,6 +61,7 @@ class PyAgent:
         x,y = self.loc
         orientation = self.orientation
     
+        # only when the bump flag is false increment the x & y coords
         if orientation == Orientation.RIGHT:
             if self.bump is False:
                 x += 1
@@ -74,14 +75,9 @@ class PyAgent:
         elif orientation == Orientation.DOWN and y > 1:
             y -= 1
 
+        # set agent location
         self.loc[0] = x
         self.loc[1] = y
-
-
-        #only update visited if its a real move and not used for agent logic 
-        if real is True:
-            if (self.loc[0], self.loc[1]) not in self.visited:
-                self.visited.append((self.loc[0], self.loc[1]))
 
 
     # find all potential wumpus locations given 
@@ -253,6 +249,8 @@ class PyAgent:
     
     # return True if the next_move param is closer to [1,1] than the best move
     def is_closer(self, next_move, best_move):
+        # this does not account for closest to [1,1] yet
+        # needs work... ... ...
         self.visited.sort()
         if next_move < best_move:
             return True
@@ -357,9 +355,7 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
             print('TO MOVE: ', move)
             agent.update_location()
             return Action.GOFORWARD
-        action = agent.random_turn()
-        agent.update_orientation(action)
-        return action
+        
     # randomly turn
     action = agent.random_turn()
     agent.update_orientation(action)

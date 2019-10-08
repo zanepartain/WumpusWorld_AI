@@ -22,6 +22,7 @@ class PyAgent:
         self._wumpus = True    # wumpus alive ? true : false
         self._sorted = True    # whether or not the visited list is sorted
         self.orientation = Orientation.RIGHT # Agent starts right
+        self.prev_loc = None
         
         # flags for when bump is true
         self.bump = False 
@@ -258,12 +259,11 @@ class PyAgent:
 
         # go through all locations in ascending order (1,1) (1,2) ...
         for loc in self.visited:
-            if loc in safe_moves:
-                # if the loc in the safe moves then you 
-                # know the next best move
-                print("NEXT BEST MOVE: ", loc)
-                return loc
-
+                if loc in safe_moves and loc < (self.loc[0],self.loc[1]):
+                    # if the loc in the safe moves then you 
+                    # know the next best move
+                    print("NEXT BEST MOVE: ", loc)
+                    return loc
 
     # push the cells on the path back from the gold to [1,1] in a stack.
     # the stack will be used to for the agent to move to first (if safe)
@@ -279,8 +279,8 @@ class PyAgent:
     def is_closer(self, next_move, best_move):
         # this does not account for closest to [1,1] yet
         # needs work... ... ...
-        self.visited.sort()
         if next_move < best_move:
+            print("NEXT MOVE < BEST MOVE")
             return True
 
         return False
@@ -321,6 +321,7 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
         safe, next_move = agent.logical_move()  # check if going forward is safe
 
         print('NEXT MOVE: ', next_move)
+        print('BEST move:', best_move)
         # the best theoretical move to get to [1,1] 
         # from current location is also the next potential move
         if next_move == best_move:
@@ -330,7 +331,7 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
 
         # if you were to move forward and the area is safe (visited or unvisited)
         # and it gets you closer to [1,1] than your best move. Then GOFORWARD!!
-        elif safe is True and agent.is_closer(next_move,best_move):
+        elif safe is True and best_move is None:
             agent.update_location()
             agent.money_grabber(next_move)
             return Action.GOFORWARD
@@ -398,6 +399,9 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
             return Action.GOFORWARD
         
     # randomly turn
+    if agent.loc == [1,1]:
+        agent.update_location()
+        return Action.GOFORWARD
     action = agent.random_turn()
     agent.update_orientation(action)
     return action

@@ -37,6 +37,7 @@ class Agent:
         self.printPitLocs = [[0.2 for i in range(5)]for j in range(5)] # just for printing orientation
         self.breezeLocations = []
         self.noPitLocs = []
+        self.pitLocs = []
     
     def Initialize(self):
         self.worldState.agentLocation = [1,1]
@@ -125,11 +126,21 @@ class Agent:
             # facing RIGHT, perceive a stench, and don't know the wumpus location.
             # In this case, a SCREAM percept means the wumpus is in (2,1) (and dead),
             # or if no SCREAM, then the wumpus is in (1,2) (and still alive).
-            self.possibleWumpusLocations = []
-            if (percept['Scream']):
-                self.possibleWumpusLocations.append([2,1])
+            if self.worldState.agentLocation == [1,1]:
+                self.possibleWumpusLocations = []
+                if (percept['Scream']):
+                    self.possibleWumpusLocations.append([2,1])
+                else:
+                    self.possibleWumpusLocations.append([1,2])
+
+            # HW9 :: wumpus cannot be in location that agent shot
             else:
-                self.possibleWumpusLocations.append([1,2])
+                # In this scenario an agent is facing a location where there might be a wumpus
+                # But we definitely know there is not a pit. So after shooting the arrow, the are
+                # can be considered safe as we know now there is no pit or wumpus in that location
+                self.possibleWumpusLocations.remove(self.GetGoForward())
+                self.AddNewLocation(self.safeLocations,self.GetGoForward())
+
             
         # Update visited locations and safelocations        
         self.AddNewLocation(self.visitedLocations, self.worldState.agentLocation)
@@ -140,15 +151,15 @@ class Agent:
         # and possible wumpus locations.
         if (percept['Stench'] and percept['Breeze']):
             self.AddNewLocation(self.stenchLocations, self.worldState.agentLocation)
-            self.AddNewLocation(self.breezeLocations, self.worldState.agentLocation)
             # HW9 :: update pit prob if experienced breeze
+            self.AddNewLocation(self.breezeLocations, self.worldState.agentLocation)
             self.UpdatePitProb()
         elif (percept['Stench']):
             self.AddNewLocation(self.stenchLocations, self.worldState.agentLocation)
             self.AddAdjacentLocations(self.noPitLocs, self.worldState.agentLocation)
         elif (percept['Breeze']):
-            self.AddNewLocation(self.breezeLocations, self.worldState.agentLocation)
             # HW9 :: update pit prob if experienced breeze
+            self.AddNewLocation(self.breezeLocations, self.worldState.agentLocation)
             self.UpdatePitProb()
         else:
             self.AddNewLocation(self.clearLocations, self.worldState.agentLocation)
@@ -164,6 +175,15 @@ class Agent:
         self.ClearPitLocs()
         self.PrintPitLocations()
         self.Output()
+
+
+    # HW9 :: if it is a retrial populate all previously known pits (found or killed by)
+    def PopulateKnownPits(self, pits):
+        print('PIT LOCS:',pits)
+        if pits:
+            for loc in pits:
+                self.pitLocations[loc[0]-1][loc[1]-1] = 1.00
+                self.printPitLocs[loc[1]-1][loc[0]-1] = 1.00
 
 
     # HW9 :: ensure pit is within bounds of pit[5][5]
@@ -207,13 +227,15 @@ class Agent:
         for breeze in self.breezeLocations:
             adjPits = []
             self.AddAdjacentLocations(adjPits, breeze)
-            adjPits = [loc for loc in adjPits if loc not in self.safeLocations and self.PitBounds(loc)] # eliminate all clear locations
+            adjPits = [loc for loc in adjPits if loc not in self.safeLocations and loc not in self.noPitLocs and self.PitBounds(loc) and loc not in knownPits] # eliminate all clear locations
             for pit in adjPits:
                 if pit not in pitAlreadyCalc:
                     prob = self.CalculatePitProbability(pit)
                     pitAlreadyCalc.append(pit)
                     self.pitLocations[pit[0]-1][pit[1]-1] = prob  # update prob of pit at given location
                     self.printPitLocs[pit[1]-1][pit[0]-1] = prob  # update prob of pit at given location
+                    if prob == 1.00:
+                       knownPits.append(pit)
 
         # self.PrintPitLocations()
     
@@ -232,10 +254,10 @@ class Agent:
         print('frontier:', frontier)
 
         # avoid divide by 0 exception
-        dist = self.DistProbPit(pit, frontier, self.breezeLocations)
-        if sum(dist) != 0:
-            print('sum', sum(dist))
-            alpha = round(1/(dist[0] + dist[1]),2)
+        if pit not in self.noPitLocs:
+            dist = self.DistProbPit(pit, frontier, self.breezeLocations) # get distribution probabilites of <pit, ~pit>
+            if sum(dist) != 0:
+                alpha = round(1/(dist[0] + dist[1]),2)
 
         print('alpha={}, dist={}'.format(alpha,dist))
         print('ans=<{},{}>'.format(round(dist[0]*alpha, 2),round(dist[1]*alpha,2)))
@@ -286,7 +308,7 @@ class Agent:
         for b in allBreezes:
             breezes[str(b)] = []
             self.AddAdjacentLocations(breezes[str(b)], b)
-            breezes[str(b)] = [loc for loc in breezes[str(b)] if loc not in self.safeLocations] # eliminate all clear locations
+            breezes[str(b)] = [loc for loc in breezes[str(b)] if loc not in self.safeLocations and loc not in self.noPitLocs] # eliminate all clear locations
 
         #  -- truthPit = None
         #  -- print('////////////////')
@@ -413,7 +435,7 @@ class Agent:
             self.pathToGold = self.pathToGold[:index]
         self.pathToGold.append(location)
     
-    # HW5
+    # HW9/HW5
     #
     # Choose and return an action when we haven't found the gold yet.
     # Handle special case where we start out in (1,1), perceive a stench, and
@@ -423,9 +445,21 @@ class Agent:
     #
     def ChooseAction(self, percept):
         forwardLocation = self.GetGoForward()
-        if (percept['Stench'] and (self.worldState.agentLocation == [1,1]) and
-                (len(self.possibleWumpusLocations) != 1)):
+        if (percept['Stench'] and self.worldState.agentHasArrow):
             action = Action.SHOOT
+        elif(percept['Breeze'] and self.worldState.agentLocation == [1,1]):
+            # HW9 :: breeze in 1,1
+            # both directions are unknown
+            if [2,1] not in knownPits and [1,2] not in knownPits:
+                action = Action.GOFORWARD
+            elif forwardLocation in knownPits:
+                action = randint(1,2) # random turn
+            else:
+                if self.previousAction == Action.GOFORWARD:
+                    action = randint(1,2) # random turn so you don't continusouly keep going into wall
+                else:
+                    action = Action.GOFORWARD # in a new orientation so turn
+            
         elif ((forwardLocation in self.safeLocations) and (forwardLocation not in self.visitedLocations)):
             # If happen to be facing safe unvisited location, then move there
             action = Action.GOFORWARD
@@ -433,10 +467,20 @@ class Agent:
             # Choose randomly from GOFORWARD, TURNLEFT, and TURNRIGHT, but don't
             # GOFORWARD into a possible wumpus location or a wall
             if ((forwardLocation in self.possibleWumpusLocations or self.OutsideWorld(forwardLocation)) 
-                or (self.PitBounds(forwardLocation) and self.pitLocations[forwardLocation[0]-1][forwardLocation[1]-1] > 0.32)):
+                or (self.PitBounds(forwardLocation) and self.pitLocations[forwardLocation[0]-1][forwardLocation[1]-1] > 0.50)): # HW9
                     action = randint(1,2) # TURNLEFT, TURNRIGHT
             else:
                 action = randint(0,2) # GOFORWARD, TURNLEFT, TURNRIGHT
+            if ((percept['Stench']) and (forwardLocation in self.noPitLocs) and (self.worldState.agentHasArrow)):
+                # HW9
+                # If agent is not in [1,1] and there is no possible safe location to move due to a stench
+                # If the agent is facing a location where we know there is no pit, but might be wumpus
+                # Then the agent will shoot it's arrow  
+                # (e.g pit(3,1) and stench(1,2) and breeze=(2,1) and visited=(1,1),(2,1),(1,2)) => safeLocations=(1,1), (2,1), (1,2) and noPitLocs=(2,2), (1,3)
+                if forwardLocation not in self.safeLocations:
+                    action = Action.SHOOT
+                else: 
+                    action = randint(0,2) # GOFORWARD, TURNLEFT, TURNRIGHT
         return action
     
     # HW5
@@ -550,24 +594,28 @@ class Agent:
             else:
                 actionStrList.append('CLIMB')
         print("Action List: " + str(actionStrList))
+        print('NOT PITS: ' + str(self.noPitLocs))
         print("")
 
 
 # Global agent
 myAgent = 0
-
+knownPits = []
 def PyAgent_Constructor ():
     print("PyAgent_Constructor")
-    global myAgent
+    global myAgent, knownPits
     myAgent = Agent()
+    # knownPits = []
 
 def PyAgent_Destructor ():
     print("PyAgent_Destructor")
 
 def PyAgent_Initialize ():
     print("PyAgent_Initialize")
-    global myAgent
+    global myAgent, knownPits
     myAgent.Initialize()
+    print(knownPits)
+    myAgent.PopulateKnownPits(knownPits)
 
 def PyAgent_Process (stench,breeze,glitter,bump,scream):
     global myAgent
@@ -576,6 +624,11 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
     return myAgent.Process(percept)
 
 def PyAgent_GameOver (score):
+    global myAgent, knownPits
     print("PyAgent_GameOver: score = " + str(score))
+    # keep track of known pits for trials
+    if myAgent.GetGoForward() not in knownPits and myAgent.GetGoForward() != [1,0]:
+        knownPits.append(myAgent.GetGoForward())
+    print('KNOWN PITS:', knownPits)
     myAgent.GameOver(score) # HW5
 

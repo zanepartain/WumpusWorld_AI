@@ -3,6 +3,7 @@
 from random import randint
 import Action
 import Orientation
+import itertools
 
     
 class WorldState:
@@ -30,6 +31,12 @@ class Agent:
         self.safeLocations = []
         self.stenchLocations = []
         self.clearLocations = []
+        
+        # HW9
+        self.pitLocations = [[0.2 for i in range(5)]for j in range(5)]
+        self.printPitLocs = [[0.2 for i in range(5)]for j in range(5)] # just for printing orientation
+        self.breezeLocations = []
+        self.noPitLocs = []
     
     def Initialize(self):
         self.worldState.agentLocation = [1,1]
@@ -38,7 +45,11 @@ class Agent:
         self.worldState.agentHasGold = False
         self.previousAction = Action.CLIMB
         self.actionList = []
-        
+        self.pitLocations[0][0] = 0.0
+        self.printPitLocs[0][0] = 0.0
+        self.noPitLocs = [[1,1]]
+
+
         # HW5
         if (self.firstTry):
             self.worldState.goldLocation = [0,0] # unknown
@@ -51,7 +62,10 @@ class Agent:
                 self.pathToGold.append([1,1])
             else:
                 self.AddActionsFromPath(True) # forward through path from (1,1) to gold location
-    
+
+        # HW9
+        self.pitLocations = [[0.2 for i in range(5)] for j in range(5)]
+
     def Process(self, percept):
         self.UpdateState(percept)
         if (not self.actionList):
@@ -88,6 +102,7 @@ class Agent:
                 if (self.worldState.goldLocation == [0,0]):
                     # If haven't found gold yet, add this location to the pathToGold
                     self.AddToPath(self.worldState.agentLocation)
+
                 
         if (self.previousAction == Action.TURNLEFT):
             self.worldState.agentOrientation = (currentOrientation + 1) % 4
@@ -116,23 +131,223 @@ class Agent:
             else:
                 self.possibleWumpusLocations.append([1,2])
             
-        # Nothing to do for CLIMB
-        
-        # HW5
-        # Update visited locations, safe locations, stench locations, clear locations,
-        # and possible wumpus locations.
+        # Update visited locations and safelocations        
         self.AddNewLocation(self.visitedLocations, self.worldState.agentLocation)
         self.AddNewLocation(self.safeLocations, self.worldState.agentLocation)
-        if (percept['Stench']):
+
+        # HW5 | HW9
+        # Update safe locations, stench locations, clear locations,
+        # and possible wumpus locations.
+        if (percept['Stench'] and percept['Breeze']):
             self.AddNewLocation(self.stenchLocations, self.worldState.agentLocation)
+            self.AddNewLocation(self.breezeLocations, self.worldState.agentLocation)
+            # HW9 :: update pit prob if experienced breeze
+            self.UpdatePitProb()
+        elif (percept['Stench']):
+            self.AddNewLocation(self.stenchLocations, self.worldState.agentLocation)
+            self.AddAdjacentLocations(self.noPitLocs, self.worldState.agentLocation)
+        elif (percept['Breeze']):
+            self.AddNewLocation(self.breezeLocations, self.worldState.agentLocation)
+            # HW9 :: update pit prob if experienced breeze
+            self.UpdatePitProb()
         else:
             self.AddNewLocation(self.clearLocations, self.worldState.agentLocation)
             self.AddAdjacentLocations(self.safeLocations, self.worldState.agentLocation)
         if (len(self.possibleWumpusLocations) != 1):
             self.UpdatePossibleWumpusLocations()
-    
-        self.Output()
+        # HW9 :: only update pit prob if we move
+        if len(self.breezeLocations) > 0:
+            if 0 < self.worldState.agentLocation[0] <= 5 and 0 < self.worldState.agentLocation[1] <= 5:
+                print(self.worldState.agentLocation)
+                self.UpdatePitProb()
         
+        self.ClearPitLocs()
+        self.PrintPitLocations()
+        self.Output()
+
+
+    # HW9 :: ensure pit is within bounds of pit[5][5]
+    def PitBounds(self,pit):
+        if 0 < pit[0] <= 5 and 0 < pit[1] <= 5:
+            return True
+        return False
+
+        
+    # HW9
+    # Print Pit Locations and their probabilities for 5x5 world  
+    def PrintPitLocations(self):
+        print('P(pit):')
+        for i in range(5):
+            for j in range(5):
+                print('{:.2f} '.format(self.printPitLocs[4-i][j])), 
+                pass
+            print('\n')
+
+
+    # HW9 :: set all pit probabilities to 0.0 if they are in clear 
+    def ClearPitLocs(self):
+        if self.safeLocations:
+            for clearLoc in self.safeLocations:
+                if 0 < clearLoc[0] <= 5 and 0 < clearLoc[1] <= 5:
+                    self.pitLocations[clearLoc[0]-1][clearLoc[1]-1] = 0.0
+                    self.printPitLocs[clearLoc[1]-1][clearLoc[0]-1] = 0.0
+        if self.noPitLocs:
+            for loc in self.noPitLocs:
+                if 0 < loc[0] <= 5 and 0 < loc[1] <= 5:
+                    self.pitLocations[loc[0]-1][loc[1]-1] = 0.0
+                    self.printPitLocs[loc[1]-1][loc[0]-1] = 0.0
+        
+
+    # HW9
+    # Iterate over all known breeze locations and update pit location probabilities
+    def UpdatePitProb(self):
+        self.ClearPitLocs()
+        pitAlreadyCalc = []  # store already calculated pit probability locations
+        # find all adjacent pit locations from a breeze given they aren't clear
+        for breeze in self.breezeLocations:
+            adjPits = []
+            self.AddAdjacentLocations(adjPits, breeze)
+            adjPits = [loc for loc in adjPits if loc not in self.safeLocations and self.PitBounds(loc)] # eliminate all clear locations
+            for pit in adjPits:
+                if pit not in pitAlreadyCalc:
+                    prob = self.CalculatePitProbability(pit)
+                    pitAlreadyCalc.append(pit)
+                    self.pitLocations[pit[0]-1][pit[1]-1] = prob  # update prob of pit at given location
+                    self.printPitLocs[pit[1]-1][pit[0]-1] = prob  # update prob of pit at given location
+
+        # self.PrintPitLocations()
+    
+
+    # HW9
+    # calculate the distribution probability of a pit, then return the truth value
+    def CalculatePitProbability(self, pit):
+        frontier = self.GetFrontier(pit, self.visitedLocations) # get the frontier of the query pit
+        dist = [0.00,0.00]
+        alpha = 0.00
+
+        print('----------------------------')
+        print('query pit', pit)
+        print('breezes:', self.breezeLocations)
+        print('known:', self.visitedLocations)  # 
+        print('frontier:', frontier)
+
+        # avoid divide by 0 exception
+        dist = self.DistProbPit(pit, frontier, self.breezeLocations)
+        if sum(dist) != 0:
+            print('sum', sum(dist))
+            alpha = round(1/(dist[0] + dist[1]),2)
+
+        print('alpha={}, dist={}'.format(alpha,dist))
+        print('ans=<{},{}>'.format(round(dist[0]*alpha, 2),round(dist[1]*alpha,2)))
+        
+        return round(dist[0]*alpha, 2) # return probability pit is true
+
+
+    # HW9
+    # calculate the frontier from the pit query adjacent breeze's given they aren't clear
+    def GetFrontier(self, pit, known):
+        frontier = []
+        for loc in known:
+            adjPits = []
+            self.AddAdjacentLocations(adjPits, loc)
+            adjPits = [loc for loc in adjPits if loc not in self.safeLocations and loc != pit and self.PitBounds(loc)] # eliminate all clear locations
+            # adjPits.remove(pit) # remove the query pit
+            [frontier.append(x) for x in adjPits if x not in frontier]
+        return frontier
+
+
+    # HW9
+    # return the permutations of pit probabilities given the number of frontier pits
+    def GetFrontierPermutations(self, frontier):
+        l = [ (0.2,), (0.8,) ]
+        if len(frontier) > 1:  # there can only be two pits max in the frontier in this case
+            perm = [0.2] * (len(frontier))
+            perm.remove(0.2)  # enter loop with one frontier pit false
+            perm.append(0.8)
+            
+            l = [(0.2,) * (len(frontier))]  # case wehre all frontier pits are true
+            # loop until all pits are false
+            while len(set(perm)) != 1:
+                # append the permutation if not already in the list
+                [l.append(x) for x in itertools.permutations(perm, len(frontier)) if x not in l]
+                if 0.2 in perm:
+                    perm.remove(0.2)
+                    perm.append(0.8)
+            l.append((0.8,)*(len(frontier)))  # case wehre all frontier pits are false
+
+        return l
+
+
+    # HW9
+    # determine probability of a breeze given pit and frontier probabilities
+    def BreezeProb(self, pit, frontier, Ppit, Pfrontier, allBreezes):
+        # for the set of breezes calculate all pits each one depend on 
+        breezes = {}
+        for b in allBreezes:
+            breezes[str(b)] = []
+            self.AddAdjacentLocations(breezes[str(b)], b)
+            breezes[str(b)] = [loc for loc in breezes[str(b)] if loc not in self.safeLocations] # eliminate all clear locations
+
+        #  -- truthPit = None
+        #  -- print('////////////////')
+        #  -- print('pits: {} {}'.format(pit,frontier))
+        #  -- print('prob: {} {}'.format(Ppit, Pfrontier))
+        #  -- print('Breeze dependencies: {}'.format(breezes))
+
+        # parallel boolean array for indicating satisfied breezes in breeze set
+        satisfied = []
+        [satisfied.append(False) for x in breezes]  
+        index = 0  # to specify which breeze we are currently looking at
+        for key, val in breezes.items():
+            for i in range(len(val)):
+                if satisfied[index] is False:  # if the current breeze is not already satisfied
+                    if val[i] == pit and Ppit == 0.2:
+                        satisfied[index] = True
+                        # -- truthPit = val[i]
+                    elif val[i] in frontier:
+                        j = frontier.index(val[i]) # get the index of the frontier pit
+                        if Pfrontier[j] == 0.2:
+                            satisfied[index] = True
+                            # -- truthPit = val[i]
+            # if a breeze in the set of breezes is not satisfied
+            if satisfied[index] is False:
+                # -- print('breeze ' + str(key) + ' is FALSE :: return 0')
+                return 0
+            # -- print('P(breeze = {} | {} ) is TRUE '.format(key,truthPit))
+            index += 1
+
+        return 1
+
+
+    # HW9
+    # calculate distribution probability of a pit using
+    # P( Pit | breeze, known) = P(pit)E_frontier[P(breeze|pit, known, frontier)P(frontier)]
+    def DistProbPit(self, pit, frontier, breezes):
+        pTrueSum = 0.0
+        pNotSum = 0.0
+        frontierPerms = self.GetFrontierPermutations(frontier)
+        # print('frontier perms:', frontierPerms)
+        # calculate product of every permutation of frontier pit probabilites
+        products = []
+        for perm in frontierPerms:
+            prod = 1.0
+            for val in perm:
+                prod *= val
+            products.append(round(prod, 4))
+            # print('perm = {}, product={}'.format(perm,product))
+        # -- print('products', products)
+
+        for i in range(len(products)):
+            if i < (len(products)-1):
+                # P(~pit)E_frontierP(breeze|~pit, known, frontier)P(frontier)
+                pNotSum += (0.8)*self.BreezeProb(pit, frontier, 0.8, frontierPerms[i], breezes)*products[i]
+            # P(pit)E_frontierP(breeze|pit, known, frontier)P(frontier)
+            pTrueSum += (0.2)*self.BreezeProb(pit, frontier, 0.2, frontierPerms[i], breezes)*products[i]
+
+        # -- print('PTrueSum:', round(pTrueSum,3))
+        # -- print('PNotSum:', round(pNotSum,3))
+        return [round(pTrueSum, 3),round(pNotSum, 3)]
+
     # HW5
     #
     # Update possible wumpus locations based on the current set of stench locations
@@ -165,6 +380,9 @@ class Agent:
             for location2 in tmpLocations:
                 if (location2 not in adjacentLocations):
                     self.possibleWumpusLocations.append(location2)
+
+        # ensure that no potential wumpus location is a safe location
+        self.possibleWumpusLocations = [x for x in self.possibleWumpusLocations if x not in self.safeLocations]
 
     # HW5
     #
@@ -214,9 +432,9 @@ class Agent:
         else:
             # Choose randomly from GOFORWARD, TURNLEFT, and TURNRIGHT, but don't
             # GOFORWARD into a possible wumpus location or a wall
-            if ((forwardLocation in self.possibleWumpusLocations) or
-                    self.OutsideWorld(forwardLocation)):
-                action = randint(1,2) # TURNLEFT, TURNRIGHT
+            if ((forwardLocation in self.possibleWumpusLocations or self.OutsideWorld(forwardLocation)) 
+                or (self.PitBounds(forwardLocation) and self.pitLocations[forwardLocation[0]-1][forwardLocation[1]-1] > 0.32)):
+                    action = randint(1,2) # TURNLEFT, TURNRIGHT
             else:
                 action = randint(0,2) # GOFORWARD, TURNLEFT, TURNRIGHT
         return action
@@ -313,6 +531,7 @@ class Agent:
         print("World Size: "+ str(self.worldState.worldSize))
         print("Visited Locations: " + str(self.visitedLocations))
         print("Safe Locations: " + str(self.safeLocations))
+        print("Breeze Locations: " + str(self.breezeLocations))
         print("Possible Wumpus Locations: " + str(self.possibleWumpusLocations))
         print("Gold Location: " + str(self.worldState.goldLocation))
         print("Path To Gold: " + str(self.pathToGold))
@@ -359,3 +578,4 @@ def PyAgent_Process (stench,breeze,glitter,bump,scream):
 def PyAgent_GameOver (score):
     print("PyAgent_GameOver: score = " + str(score))
     myAgent.GameOver(score) # HW5
+

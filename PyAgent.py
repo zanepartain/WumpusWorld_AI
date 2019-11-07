@@ -138,8 +138,9 @@ class Agent:
                 # In this scenario an agent is facing a location where there might be a wumpus
                 # But we definitely know there is not a pit. So after shooting the arrow, the are
                 # can be considered safe as we know now there is no pit or wumpus in that location
-                self.possibleWumpusLocations.remove(self.GetGoForward())
-                self.AddNewLocation(self.safeLocations,self.GetGoForward())
+                if self.GetGoForward() in self.possibleWumpusLocations:
+                    self.possibleWumpusLocations.remove(self.GetGoForward())
+                    self.AddNewLocation(self.safeLocations,self.GetGoForward())
 
             
         # Update visited locations and safelocations        

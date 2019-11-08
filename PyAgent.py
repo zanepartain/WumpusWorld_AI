@@ -183,8 +183,9 @@ class Agent:
         print('PIT LOCS:',pits)
         if pits:
             for loc in pits:
-                self.pitLocations[loc[0]-1][loc[1]-1] = 1.00
-                self.printPitLocs[loc[1]-1][loc[0]-1] = 1.00
+                if self.PitBounds(loc):
+                    self.pitLocations[loc[0]-1][loc[1]-1] = 1.00
+                    self.printPitLocs[loc[1]-1][loc[0]-1] = 1.00
 
 
     # HW9 :: ensure pit is within bounds of pit[5][5]
@@ -310,7 +311,7 @@ class Agent:
             breezes[str(b)] = []
             self.AddAdjacentLocations(breezes[str(b)], b)
             breezes[str(b)] = [loc for loc in breezes[str(b)] if loc not in self.safeLocations and loc not in self.noPitLocs] # eliminate all clear locations
-
+        
         #  -- truthPit = None
         #  -- print('////////////////')
         #  -- print('pits: {} {}'.format(pit,frontier))
@@ -628,7 +629,7 @@ def PyAgent_GameOver (score):
     global myAgent, knownPits
     print("PyAgent_GameOver: score = " + str(score))
     # keep track of known pits for trials
-    if myAgent.GetGoForward() not in knownPits and myAgent.GetGoForward() != [1,0]:
+    if myAgent.GetGoForward() not in knownPits and myAgent.GetGoForward() != [1,0] and myAgent.GetGoForward() != [0,1]:
         knownPits.append(myAgent.GetGoForward())
     print('KNOWN PITS:', knownPits)
     myAgent.GameOver(score) # HW5
